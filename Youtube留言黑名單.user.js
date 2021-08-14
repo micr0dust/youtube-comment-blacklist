@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Youtube留言黑名單
 // @namespace    http://tampermonkey.net/
-// @version      1.4
+// @version      1.5.1
 // @description  屏蔽黑名單內頻道在其他影片下的留言，可以查看和移除黑名單內的頻道。
 // @author       Microdust
 // @match        https://*.youtube.com/*
@@ -22,12 +22,27 @@
     const deleteComment = true;
     //不刪除留言時用deleteText裡的文字覆蓋
     const deleteText = "留言被屏蔽";
-    //黑名單導出的檔名(不可為空)
+    //#黑名單-導出的檔名(不可為空)
     const exportName = "黑名單";
-    //黑名單佔整個畫面的寬度比例
+    //#黑名單-佔整個畫面的寬度比例
     const blacklistWidth = "50%";
-    //名字顯示最長字數(超過此限制將會以'...'省略，數字為負將不限制)
+    //#黑名單-名字顯示最長字數(超過此限制將會以'...'省略，數字為負將不限制)
     const nameLength = -1;
+    //留言最小字數過濾，小於0則不限制(需小於留言最大字數)
+    const commentMinLength = 0;
+    //留言最大字數過濾，小於0則不限制(需大於留言最小字數)
+    const commentMaxLength = 0;
+    //關鍵字過濾
+    const banWords=[
+        //    "將要過濾的關鍵字填入雙引號中","刪除註解以啟用過濾","可自由增減關鍵字"
+    ];
+    //
+    //以下為範例:
+    //---------------------------------
+    //-   const banWords=[
+    //-       "關","鍵字","範例"
+    //-   ];
+    //---------------------------------
     //
     let btnSetting;
     let prelink;
@@ -194,15 +209,15 @@
         return reply;
     }
     function foldedData(thread){
-        replyUserId = getElementByXpath(replyPath+"/div[2]/div[2]/div[1]/div[2]/h3/a").href.toString().replace(/https:\/\/www.youtube.com\/channel\//g,"");
-        replyUserName = getElementByXpath(replyPath+"/div[2]/div[2]/div[1]/div[2]/h3/a/span");
+        replyUserId = getElementByXpath(replyPath+"/div[3]/div[2]/div[1]/div[2]/h3/a").href.toString().replace(/https:\/\/www.youtube.com\/channel\//g,"");
+        replyUserName = getElementByXpath(replyPath+"/div[3]/div[2]/div[1]/div[2]/h3/a/span");
         if(replyUserName) replyUserName = replyUserName.textContent.toString().replace(/\n              /g,"").replace(/\n            /g,"");
-        replyValue = getElementByXpath(replyPath+"/div[2]/div[2]/ytd-expander/div/yt-formatted-string[2]");
+        replyValue = getElementByXpath(replyPath+"/div[3]/div[2]/ytd-expander/div/yt-formatted-string[2]");
         btnBlackList = getElementByXpath(replyPath);
         btnBlackList.setAttribute("data-commentID",replyUserId);
         btnBlackList.setAttribute("data-commentName",replyUserName);
         btnBlackList.setAttribute("data-commentSeq",thread);
-        if(banlistSearch(replyUserId)) {
+        if(banlistSearch(replyUserId)||wordFilter(replyValue.textContent)) {
             if(reply&&deleteComment) reply.style.display = 'none';
             if(replyValue) {
                 replyValue.innerText = deleteText;
@@ -227,15 +242,16 @@
         return comment;
     }
     function defData(){
-        commentUserId = getElementByXpath(path+"/ytd-comment-renderer/div[2]/div[2]/div[1]/div[2]/h3/a").href.toString().replace(/https:\/\/www.youtube.com\/channel\//g,"");
-        commentUserName = getElementByXpath(path+"/ytd-comment-renderer/div[2]/div[2]/div[1]/div[2]/h3/a/span");
+        commentUserId = getElementByXpath(path+"/ytd-comment-renderer/div[3]/div[2]/div[1]/div[2]/h3/a").href.toString().replace(/https:\/\/www.youtube.com\/channel\//g,"");
+        commentUserName = getElementByXpath(path+"/ytd-comment-renderer/div[3]/div[2]/div[1]/div[2]/h3/a/span");
         if(commentUserName) commentUserName = commentUserName.textContent.toString().replace(/\n              /g,"").replace(/\n            /g,"");
-        commentValue = getElementByXpath(path+"/ytd-comment-renderer/div[2]/div[2]/ytd-expander/div/yt-formatted-string[2]");
+        commentValue = getElementByXpath(path+"/ytd-comment-renderer/div[3]/div[2]/ytd-expander/div/yt-formatted-string[2]");
+        console.log(commentValue);
         btnBlackList = getElementByXpath(path+"/ytd-comment-renderer");
         btnBlackList.setAttribute("data-commentID",commentUserId);
         btnBlackList.setAttribute("data-commentName",commentUserName);
         btnBlackList.setAttribute("data-commentSeq",checkedComment+1);
-        if(banlistSearch(commentUserId)) {
+        if(banlistSearch(commentUserId)||wordFilter(commentValue.textContent)) {
             if(comment&&deleteComment) comment.style.display = 'none';
             if(commentValue) {
                 commentValue.innerText = deleteText;
@@ -393,6 +409,14 @@
             }
         }
         oimport.click();
+    }
+    function wordFilter(commentText){
+        if(commentMinLength>0&&commentText.length<commentMinLength) return commentText.length;
+        if(commentMaxLength>0&&commentText.length>commentMaxLength) return commentText.length;
+        if(banWords.length<=0) return false;
+        for(let i=0;i<banWords.length;i++){
+            if(commentText.indexOf(banWords[i])+1) return banWords[i];
+        }
     }
     function wordPure(word){
         if(nameLength>=0 && word.length>nameLength){

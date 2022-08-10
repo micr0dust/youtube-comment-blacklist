@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Youtube留言黑名單
 // @namespace    http://tampermonkey.net/
-// @version      1.6.0
+// @version      1.6.1
 // @description  屏蔽黑名單內頻道在其他影片下的留言，可以查看和移除黑名單內的頻道。
 // @author       Microdust
 // @match        https://*.youtube.com/*
@@ -389,7 +389,7 @@
             if (oimport.files.length != 0 && oimport.files[0].type.match(/json.*/)) {
                 let reader = new FileReader();
                 reader.onload = function(e) {
-                    let loadData = JSON.parse(e.target.result);
+                    let loadData = JSON.parse(decodeURIComponent(e.target.result));
                     Swal.fire({
                         title: '導入黑名單',
                         text: "請選擇要對新資料的處理方式",

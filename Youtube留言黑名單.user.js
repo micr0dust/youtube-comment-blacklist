@@ -197,7 +197,7 @@
 
     function commentCheck(element, is_reply = false) {
         const commentObj = {
-            name: element.querySelector("#author-text").href.split('@')[1],
+            name: decodeURIComponent(element.querySelector("#author-text").href.split('@')[1]),
             text: element.querySelector("#content-text > span").textContent,
             thumbnail: element.querySelector("#img").src,
             time: element.querySelector("#published-time-text > a").textContent.trim(),

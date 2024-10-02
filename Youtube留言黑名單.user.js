@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Youtube留言黑名單
 // @namespace    http://tampermonkey.net/
-// @version      1.7.2
+// @version      1.7.3
 // @description  屏蔽黑名單內頻道在其他影片下的留言，可以查看和移除黑名單內的頻道。
 // @author       Microdust
 // @match        https://*.youtube.com/*
@@ -116,7 +116,7 @@
             Swal.fire({
                 title: '黑名單',
                 width: blacklistWidth,
-                html: trustedPolicy.createHTML(oBlackList.outerHTML),
+                html: oBlackList,
                 confirmButtonText: '確認',
                 showDenyButton: true,
                 denyButtonText: '導出/導入',
@@ -138,28 +138,7 @@
                         }
                     })
                 }
-            });
-
-            // 手動綁定事件處理程序
-            let buttons = document.querySelectorAll('.swal2-container button');
-            buttons.forEach(button => {
-                button.onclick = function() {
-                    let id = this.innerText;
-                    Swal.fire(box_remove(id)).then((result) => {
-                        if (result.isConfirmed) {
-                            Swal.fire(
-                                `已將 ${id} 從黑名單移除`,
-                                `@${id}`,
-                                'info'
-                            ).then(() => {
-                                ban_set.delete(id);
-                                blacklist("save");
-                                btnSettingFn();
-                            })
-                        }
-                    })
-                }
-            });
+            })
         }
     }
 

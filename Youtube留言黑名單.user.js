@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Youtube留言黑名單
 // @namespace    http://tampermonkey.net/
-// @version      1.7.1
+// @version      1.7.2
 // @description  屏蔽黑名單內頻道在其他影片下的留言，可以查看和移除黑名單內的頻道。
 // @author       Microdust
 // @match        https://*.youtube.com/*

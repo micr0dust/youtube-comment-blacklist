@@ -43,6 +43,11 @@
        ];
     ---------------------------------*/
 
+
+    let trustedPolicy = trustedTypes.createPolicy('default', {
+        createHTML: (input) => input
+    });
+
     var comment_ptr = 0;
     var last_length = 0;
     var ban_set = new Set(GM_getValue("blacklist")?blacklist("load"):[]);
@@ -111,7 +116,7 @@
             Swal.fire({
                 title: '黑名單',
                 width: blacklistWidth,
-                html: this.appendChild(oBlackList),
+                html: trustedPolicy.createHTML(oBlackList.outerHTML),
                 confirmButtonText: '確認',
                 showDenyButton: true,
                 denyButtonText: '導出/導入',
@@ -133,7 +138,28 @@
                         }
                     })
                 }
-            })
+            });
+
+            // 手動綁定事件處理程序
+            let buttons = document.querySelectorAll('.swal2-container button');
+            buttons.forEach(button => {
+                button.onclick = function() {
+                    let id = this.innerText;
+                    Swal.fire(box_remove(id)).then((result) => {
+                        if (result.isConfirmed) {
+                            Swal.fire(
+                                `已將 ${id} 從黑名單移除`,
+                                `@${id}`,
+                                'info'
+                            ).then(() => {
+                                ban_set.delete(id);
+                                blacklist("save");
+                                btnSettingFn();
+                            })
+                        }
+                    })
+                }
+            });
         }
     }
 

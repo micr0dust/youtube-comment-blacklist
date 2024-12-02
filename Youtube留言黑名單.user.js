@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Youtube留言黑名單
 // @namespace    http://tampermonkey.net/
-// @version      1.7.3
+// @version      1.7.4
 // @description  屏蔽黑名單內頻道在其他影片下的留言，可以查看和移除黑名單內的頻道。
 // @author       Microdust
 // @match        https://*.youtube.com/*
@@ -44,9 +44,28 @@
     ---------------------------------*/
 
 
-    let trustedPolicy = trustedTypes.createPolicy('default', {
-        createHTML: (input) => input
-    });
+    let trustedPolicy;
+
+    if (window.trustedTypes) {
+        try {
+            trustedPolicy = trustedTypes.createPolicy('default', {
+                createHTML: (input) => input,
+            });
+        } catch (e) {
+            // 如果策略名稱已存在，則報錯並處理
+            if (e.message.includes('Policy with name "default" already exists'))
+                trustedPolicy = {
+                    createHTML: (input) => input,
+                };
+            else throw e;
+        }
+    } else {
+        // 不支持 Trusted Types
+        trustedPolicy = {
+            createHTML: (input) => input,
+        };
+    }
+
 
     var comment_ptr = 0;
     var last_length = 0;

@@ -3,7 +3,7 @@
 // @namespace    http://tampermonkey.net/
 // @version      1.8.0
 // @description  屏蔽黑名單內頻道在其他影片下的留言，封鎖後立即生效且不重新載入網頁。
-// @author       Microdust & AI Refactor
+// @author       Microdust
 // @match        https://*.youtube.com/*
 // @icon         https://www.google.com/s2/favicons?domain=youtube.com
 // @grant        GM_setValue
@@ -41,6 +41,7 @@
        ];
     ---------------------------------*/
 
+    //==== 程式碼開始 ========
     let trustedPolicy;
     if (window.trustedTypes) {
         try {
@@ -52,14 +53,12 @@
         trustedPolicy = { createHTML: (input) => input };
     }
 
-    var ban_set = new Set(GM_getValue("blacklist") ? blacklist("load") : []);
+    const GW_blacklist = 'blacklist';
+    var ban_set = new Set(GM_getValue(GW_blacklist) ? JSON.parse(GM_getValue(GW_blacklist)) : []);
 
-    function blacklist(event) {
-        if (event == "save") return GM_setValue("blacklist", JSON.stringify(Array.from(ban_set)));
-        return JSON.parse(GM_getValue("blacklist"));
+    function save_blacklist() {
+        GM_setValue(GW_blacklist, JSON.stringify(Array.from(ban_set)));
     }
-
-    const saveBlacklist = () => blacklist("save");
 
     const getIDfromHref = (href) => {
         if (!href) return "";
@@ -111,8 +110,8 @@
                 Swal.fire(view.remove(id)).then(r => {
                     if (r.isConfirmed) {
                         ban_set.delete(id);
-                        saveBlacklist();
-                        Swal.fire(`已將 ${id} 從黑名單移除`, `@${id}`, 'info');
+                        save_blacklist();
+                        Swal.fire(...view.remove_msg(id));
                     }
                 });
             };
@@ -125,18 +124,35 @@
                 denyButtonText: '導出檔案',
                 confirmButtonText: '導入檔案'
             }
-        }
+        },
+        add_msg: (id) => [`已將 ${id} 列入黑名單`, `@${id}`, 'info'],
+        remove_msg: (id) => [`已將 ${id} 從黑名單移除`, `@${id}`, 'info'],
+        import_confirm: () => {
+            return {
+                title: '導入黑名單',
+                text: "請選擇要對新資料的處理方式",
+                confirmButtonText: '和原資料合併',
+                showDenyButton: true,
+                denyButtonText: '覆蓋原資料',
+                backdrop: 'rgba(0,0,0,0.6)'
+            };
+        },
+        import_success_overwrite_msg: () => ['已覆蓋原資料'],
+        import_success_merge_msg: () => ['已合併兩資料'],
+        import_error_format_msg: () => ['無法讀取檔案或格式錯誤'],
+        import_error_not_json_msg: () => ['上傳的檔案非json檔']
     }
 
+    // 設定主按鈕
     function setupSettingBtn() {
         const comment_area = document.querySelector('#comments');
         if (!comment_area) return;
 
-        const btnSetting = comment_area.querySelector("#author-thumbnail #img");
+        const btnSetting = document.querySelector("#header #author-thumbnail #img");
         if (!btnSetting || btnSetting.dataset.hasEvent) return;
 
-        btnSetting.style.border = "2px solid #3085d6";
-        btnSetting.title = "點擊開啟黑名單設定";
+        btnSetting.style.border = "2px";
+        btnSetting.title = "點擊開啟黑名單";
         btnSetting.dataset.hasEvent = "true";
 
         btnSetting.onclick = (e) => {
@@ -147,15 +163,15 @@
             listHtml.style.maxHeight = "300px";
             listHtml.style.overflowY = "auto";
 
-            if (ban_set.size === 0) listHtml.innerHTML = "<p>清單目前是空的</p>";
+            if (ban_set.size === 0) listHtml.innerText = "黑名單目前是空的";
 
             ban_set.forEach(id => view.list_entry(id, listHtml));
 
-            Swal.fire(view.list(listHtml)).then(r => {
-                if (r.isDenied) {
-                    Swal.fire(view.list_import_export()).then(r2 => {
-                        if (r2.isConfirmed) importFn();
-                        else if (r2.isDenied) exportFn(GM_getValue("blacklist"), exportName + ".json");
+            Swal.fire(view.list(listHtml)).then(r => {// 開啟黑名單視窗
+                if (r.isDenied) {// 開啟導入/導出視窗
+                    Swal.fire(view.list_import_export()).then(r2 => {// 確認導入或導出
+                        if (r2.isConfirmed) importFn();// 導入
+                        else if (r2.isDenied) exportFn(GM_getValue(GW_blacklist), exportName + ".json");// 導出
                     });
                 }
             });
@@ -174,12 +190,12 @@
             node.addEventListener('dblclick', (e) => {
                 e.preventDefault();
                 e.stopPropagation();
-                Swal.fire(view.add(userID)).then(r => {
-                    if (r.isConfirmed) {
+                Swal.fire(view.add(userID)).then(r => {// 確認加入黑名單
+                    if (r.isConfirmed) {// 加入黑名單
                         ban_set.add(userID);
-                        saveBlacklist();
+                        save_blacklist();
                         scanComments();
-                        Swal.fire(`已將 ${userID} 列入黑名單`, `@${userID}`, 'info');
+                        Swal.fire(...view.add_msg(userID));
                     }
                 });
             });
@@ -240,34 +256,27 @@
                 reader.onload = function(e) {
                     try {
                         let loadData = JSON.parse(decodeURIComponent(e.target.result));
-                        Swal.fire({
-                            title: '導入黑名單',
-                            text: "請選擇要對新資料的處理方式",
-                            confirmButtonText: '和原資料合併',
-                            showDenyButton: true,
-                            denyButtonText: '覆蓋原資料',
-                            backdrop: 'rgba(0,0,0,0.6)'
-                        }).then((result) => {
-                            if (result.isDenied) {
+                        Swal.fire(view.import_confirm()).then((result) => {// 確認導入方式
+                            if (result.isDenied) {// 覆蓋原資料
                                 ban_set = new Set(loadData);
-                                saveBlacklist();
+                                save_blacklist();
                                 scanComments();
-                                Swal.fire('已覆蓋原資料');
-                            } else if (result.isConfirmed) {
+                                Swal.fire(...view.import_success_overwrite_msg());
+                            } else if (result.isConfirmed) {// 合併資料
                                 let new_ban_set = new Set(loadData);
                                 ban_set = new Set([...ban_set, ...new_ban_set]);
-                                saveBlacklist();
+                                save_blacklist();
                                 scanComments();
-                                Swal.fire('已合併兩資料');
+                                Swal.fire(...view.import_success_merge_msg());
                             }
                         });
-                    } catch (err) {
-                        Swal.fire('無法讀取檔案或格式錯誤');
+                    } catch (err) {// 讀取錯誤
+                        Swal.fire(...view.import_error_format_msg());
                     }
                 }
                 reader.readAsText(oimport.files[0], "ISO-8859-1");
             } else {
-                Swal.fire('上傳的檔案非json檔');
+                Swal.fire(...view.import_error_not_json_msg());
             }
         }
         oimport.click();
@@ -276,7 +285,7 @@
     // 監聽 DOM 變化
     let timer = null;
     const observer = new MutationObserver(() => {
-        if (timer) return;
+        if (timer) return; // 防止短時間內多次觸發
         timer = setTimeout(() => {
             scanComments();
             timer = null;

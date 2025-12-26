@@ -1,8 +1,8 @@
 // ==UserScript==
-// @name         Youtube留言黑名單 (修正回覆與導入導出)
+// @name         Youtube留言黑名單
 // @namespace    http://tampermonkey.net/
 // @version      1.8.0
-// @description  屏蔽黑名單內頻道在其他影片下的留言，封鎖後立即生效且不重新載入網頁。採用原版導入導出邏輯與自定義 View 模板。
+// @description  屏蔽黑名單內頻道在其他影片下的留言，封鎖後立即生效且不重新載入網頁。
 // @author       Microdust & AI Refactor
 // @match        https://*.youtube.com/*
 // @icon         https://www.google.com/s2/favicons?domain=youtube.com
@@ -15,14 +15,31 @@
 (function() {
     'use strict';
 
-    // --- 設定區 ---
+    //以下設定將在重載網頁後生效
+
+    //是否刪除在黑名單內的留言： true=刪除 / false=不刪除留言但用 deleteText 裡的文字覆蓋
     const deleteComment = true;
+    //不刪除留言時用 deleteText 裡的文字覆蓋
     const deleteText = "--留言被黑名單屏蔽--";
+    //#黑名單-導出的檔名(不可為空)
     const exportName = "黑名單";
+    //#黑名單-佔整個畫面的寬度比例
     const blacklistWidth = "50%";
+    //留言最小字數過濾，設為0則不限制(需小於留言最大字數)
     const commentMinLength = 0;
+    //留言最大字數過濾，設為0則不限制(需大於留言最小字數)
     const commentMaxLength = 0;
-    const banWords = [];
+    //關鍵字過濾
+    const banWords = [
+        //    "將要過濾的關鍵字填入雙引號中","刪除註解以啟用過濾","可自由增減關鍵字"
+    ];
+    //
+    //以下為範例:
+    /*---------------------------------
+       const banWords=[
+           "關","鍵字","範例"
+       ];
+    ---------------------------------*/
 
     let trustedPolicy;
     if (window.trustedTypes) {
@@ -49,7 +66,6 @@
         return decodeURIComponent(href).replace(/^.*\/@/, "").replace(/^.*\/user\//, "").replace(/^.*\/channel\//, "");
     };
 
-    // --- 你提供的 View 模板 ---
     const view = {
         add: ((id)=>{
             return {
@@ -111,8 +127,6 @@
             }
         }
     }
-
-    // --- 主要邏輯 ---
 
     function setupSettingBtn() {
         const comment_area = document.querySelector('#comments');
